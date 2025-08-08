@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie App - Admin Panel</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js"></script>
+    <!-- Chart.js for Graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #ff8c00;
+            --background-color: #121212;
+            --surface-color: #1e1e1e;
+            --text-color: #e0e0e0;
+            --text-muted-color: #a0a0a0;
+            --border-color: #333;
+            --font-family: 'Roboto', sans-serif;
+        }
+        body {
+            font-family: var(--font-family);
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            font-size: 16px;
+        }
+
+        /* --- Login Panel --- */
+        #login-container{display:flex;align-items:center;justify-content:center;height:100vh}.login-box{width:100%;max-width:380px;padding:40px;background-color:var(--surface-color);border-radius:12px;text-align:center;box-shadow:0 15px 30px rgba(0,0,0,.5)}.login-box h2{color:var(--primary-color);margin-bottom:25px;font-weight:700}.login-box input{width:100%;padding:14px;margin-top:15px;box-sizing:border-box;border-radius:8px;border:1px solid var(--border-color);background-color:#2a2a2a;color:#fff;font-size:16px}.login-box button{width:100%;padding:14px;margin-top:25px;background-color:var(--primary-color);color:#111;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:16px;transition:background-color .2s}.login-box button:hover{background-color:#ffbe3d}
+
+        /* --- Main Panel Layout --- */
+        #admin-panel { display: none; }
+
+        header.main-header {
+            display: flex;
+            align-items: center;
+            padding: 10px 15px; /* Reduced padding for mobile */
+            background-color: var(--surface-color);
+            border-bottom: 1px solid var(--border-color);
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%;
+            box-sizing: border-box;
+            z-index: 1000;
+        }
+        header.main-header h1 {
+            font-size: 1.2rem;
+            color: var(--primary-color);
+            margin: 0;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex-grow: 1;
+        }
+        .menu-container {
+            position: relative;
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+        .menu-icon{background:0 0;border:none;cursor:pointer;padding:10px}.menu-icon .bar{display:block;width:25px;height:3px;background-color:var(--text-muted-color);margin:5px 0;transition:.3s}
+        .dropdown-menu{display:none;position:absolute;top:50px;right:0;background-color:#2c2c2c;border-radius:8px;box-shadow:0 8px 20px rgba(0,0,0,.5);list-style:none;margin:0;padding:10px 0;width:220px;z-index:1001}.dropdown-menu.show{display:block}.dropdown-menu a{display:flex;align-items:center;gap:15px;padding:12px 20px;color:var(--text-color);text-decoration:none;font-size:1rem;font-weight:500}.dropdown-menu a:hover{background-color:var(--primary-color);color:#111}
+        
+        main.content-area { padding: 80px 15px 20px; }
+
+        .view{display:none}.view.active{display:block;animation:fadeIn .5s}@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+        /* Universal & Form Styles */
+        .section-container{background-color:var(--surface-color);border-radius:12px;padding:20px;margin-bottom:30px;border:1px solid var(--border-color)}.section-title{margin-top:0;color:#f0f0f0;border-bottom:1px solid #444;padding-bottom:15px;margin-bottom:25px;font-weight:600;font-size:1.4rem}.form-group{margin-bottom:20px}.form-group label{display:block;margin-bottom:8px;color:#bbb;font-weight:500}.form-group input,.form-group select,.form-group textarea{width:100%;padding:12px;border-radius:6px;border:1px solid #555;background-color:#333;color:#fff;box-sizing:border-box;font-family:inherit;font-size:15px}.form-buttons{display:flex;justify-content:center;gap:15px;margin-top:25px;flex-wrap:wrap}.btn{padding:12px 30px;border:none;border-radius:8px;cursor:pointer;font-size:16px;font-weight:700;transition:all .2s ease-in-out}.btn-success{background-color:#28a745;color:#fff}.btn-primary{background-color:#007bff;color:#fff}.btn-info{background-color:#17a2b8;color:#fff}.btn-secondary{background-color:#6c757d;color:#fff}.btn-danger{background-color:#dc3545;color:#fff}.btn:hover{transform:translateY(-2px);opacity:.9}
+
+        /* --- MOBILE RESPONSIVE TABLE --- */
+        .table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            min-width: 600px; /* Force scroll on small screens */
+        }
+        th,td{padding:15px;border-bottom:1px solid #333;text-align:left;vertical-align:middle}thead{background-color:#333}th{color:var(--primary-color);font-weight:600}.movie-thumbnail{width:50px;height:75px;object-fit:cover;border-radius:6px}.action-buttons{white-space:nowrap}
+
+        /* Analytics & Other Grids */
+        .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;margin-bottom:30px}.stat-card{background-color:#2a2a2a;padding:20px;border-radius:8px;text-align:center;border:1px solid #333}.stat-card h3{margin:0 0 10px;color:#bbb;font-size:1rem;font-weight:500}.stat-card p{margin:0;font-size:2rem;font-weight:700;color:var(--primary-color)}.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.chart-container{background-color:#2a2a2a;padding:20px;border-radius:8px;border:1px solid #333;height:350px}
+        
+        /* --- Media Query for Mobile --- */
+        @media (max-width: 768px) {
+            .chart-grid { grid-template-columns: 1fr; }
+            .form-buttons { flex-direction: column; gap: 10px; }
+            .btn { width: 100%; box-sizing: border-box; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="login-container">
+        <div class="login-box">
+            <h2>🔑 Admin Login</h2>
+            <input type="password" id="password-input" placeholder="Enter Password" required>
+            <button id="login-btn">Login</button>
+        </div>
+    </div>
+
+    <div id="admin-panel">
+        <header class="main-header">
+            <h1 id="home-title">Movie Admin Panel</h1>
+            <div class="menu-container">
+                <button id="menu-toggle" class="menu-icon">
+                    <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+                </button>
+                <ul id="dropdown-menu" class="dropdown-menu">
+                    <li><a href="#" class="menu-item" data-view="movies">🎬<span>Home / Movies</span></a></li>
+                    <li><a href="#" class="menu-item" data-view="analytics">📊<span>Analytics</span></a></li>
+                    <li><a href="#" class="menu-item" data-view="messages">💬<span>Message Control</span></a></li>
+                    <li><a href="#" class="menu-item" data-view="app-settings">⚙️<span>App Control</span></a></li>
+                </ul>
+            </div>
+        </header>
+
+        <main class="content-area">
+            <!-- View: Movie Management -->
+            <div id="view-movies" class="view active">
+                <section class="section-container">
+                    <h2 class="section-title" id="form-title">Add New Movie</h2>
+                    <form id="movie-form"></form>
+                </section>
+                <section class="section-container">
+                    <h2 class="section-title">📋 Existing Movies</h2>
+                    <!-- This wrapper makes the table scroll horizontally -->
+                    <div class="table-wrapper">
+                        <table>
+                            <thead><tr><th>Image</th><th>Title</th><th>Category</th><th>Actions</th></tr></thead>
+                            <tbody id="movie-list-tbody"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Other Views: Analytics, Messages, App Settings -->
+            <div id="view-analytics" class="view">
+                 <section class="section-container">
+                    <h2 class="section-title">📊 Website Analytics</h2>
+                    <div class="stat-grid">
+                        <div class="stat-card"><h3>Today's Views</h3><p id="today-views">0</p></div>
+                        <div class="stat-card"><h3>Yesterday's Views</h3><p id="yesterday-views">0</p></div>
+                        <div class="stat-card"><h3>Last 7 Days</h3><p id="weekly-views">0</p></div>
+                        <div class="stat-card"><h3>Total Views</h3><p id="total-views">0</p></div>
+                    </div>
+                    <div class="chart-grid">
+                        <div class="chart-container"><canvas id="countryChart"></canvas></div>
+                        <div class="chart-container"><canvas id="sourceChart"></canvas></div>
+                    </div>
+                </section>
+            </div>
+            <div id="view-messages" class="view">
+                 <section class="section-container">
+                    <h2 class="section-title">💬 Message Control for Users</h2>
+                    <form id="message-form">
+                        <div class="form-group"><label for="bengali-message-input">Bengali Message</label><textarea id="bengali-message-input" rows="4"></textarea></div>
+                        <div class="form-group"><label for="hindi-message-input">Hindi Message</label><textarea id="hindi-message-input" rows="4"></textarea></div>
+                        <button type="button" class="btn btn-info" id="save-messages-btn">Save Messages</button>
+                    </form>
+                </section>
+            </div>
+            <div id="view-app-settings" class="view">
+                <section class="section-container">
+                    <h2 class="section-title">⚙️ App Settings Control</h2>
+                    <form id="app-settings-form">
+                        <div class="form-group"><label for="app-icon-input">App Icon URL</label><input type="url" id="app-icon-input"></div>
+                        <div class="form-group"><label for="app-download-input">App Download URL (.apk)</label><input type="url" id="app-download-input"></div>
+                        <div class="form-group"><label for="og-image-input">Sharing Image URL</label><input type="url" id="og-image-input"></div>
+                        <button type="button" class="btn btn-info" id="save-app-settings-btn">Save App Settings</button>
+                    </form>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // --- FORM HTML INJECTION ---
+        document.getElementById('movie-form').innerHTML = `<input type="hidden" id="movie-key-input"><div class="form-group"><label for="title-input">Movie Title</label><input type="text" id="title-input" required></div><div class="form-group"><label for="image-input">Poster URL</label><input type="url" id="image-input" required></div><div class="form-group"><label for="description-input">Description</label><textarea id="description-input" rows="4"></textarea></div><div class="form-group"><label for="director-input">Director</label><input type="text" id="director-input"></div><div class="form-group"><label for="cast-input">Cast</label><input type="text" id="cast-input" placeholder="Separate with commas"></div><div class="form-group"><label for="release-date-input">Release Date</label><input type="text" id="release-date-input"></div><hr style="border-color:#444;margin:25px 0"><div class="form-group"><label for="link-input">Watch Link</label><input type="url" id="link-input"></div><div class="form-group"><label for="link2-input">Download Link 720p</label><input type="url" id="link2-input"></div><div class="form-group"><label for="link3-input">Download Link 360p</label><input type="url" id="link3-input"></div><div class="form-group"><label for="category-input">Category</label><select id="category-input" required><option value="upcoming">Upcoming Movie</option><option value="latest movie">Latest Movie</option><option value="action">Action</option><option value="comedy">Comedy</option><option value="horror">Horror</option><option value="romantic">Romantic</option><option value="other">Other</option></select></div><div class="form-group" id="notify-group"><label style="display:flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" id="notify-followers-checkbox" style="width:auto"><span>Notify followers about this movie</span></label></div><div class="form-buttons"><button type="button" class="btn btn-success" id="add-btn">Add Movie</button><button type="button" class="btn btn-primary" id="update-btn" style="display:none">Update Movie</button><button type="button" class="btn btn-secondary" id="cancel-btn">Cancel</button></div>`;
+        
+        // --- FIREBASE & GLOBAL VARS ---
+        const firebaseConfig={apiKey:"AIzaSyD-tlrPK8s9h87PVqtvprBy_phcCqONLeU",authDomain:"my-movie-81a4b.firebaseapp.com",databaseURL:"https://my-movie-81a4b-default-rtdb.firebaseio.com",projectId:"my-movie-81a4b",storageBucket:"my-movie-81a4b.firebasestorage.app",messagingSenderId:"249876555391",appId:"1:249876555391:web:81f3ad52805b0aa314c14a"};firebase.initializeApp(firebaseConfig);const database=firebase.database(),moviesRef=database.ref("movies"),settingsRef=database.ref("siteSettings"),analyticsRef=database.ref("analytics/visits");const appIconInput=document.getElementById("app-icon-input"),appDownloadInput=document.getElementById("app-download-input"),ogImageInput=document.getElementById("og-image-input"),bengaliMessageInput=document.getElementById("bengali-message-input"),hindiMessageInput=document.getElementById("hindi-message-input"),saveAppSettingsBtn=document.getElementById("save-app-settings-btn"),saveMessagesBtn=document.getElementById("save-messages-btn"),movieForm=document.getElementById("movie-form"),titleInput=document.getElementById("title-input"),imageInput=document.getElementById("image-input"),descriptionInput=document.getElementById("description-input"),linkInput=document.getElementById("link-input"),link2Input=document.getElementById("link2-input"),link3Input=document.getElementById("link3-input"),categoryInput=document.getElementById("category-input"),movieKeyInput=document.getElementById("movie-key-input"),directorInput=document.getElementById("director-input"),castInput=document.getElementById("cast-input"),releaseDateInput=document.getElementById("release-date-input"),addBtn=document.getElementById("add-btn"),updateBtn=document.getElementById("update-btn"),cancelBtn=document.getElementById("cancel-btn"),movieListTbody=document.getElementById("movie-list-tbody"),formTitle=document.getElementById("form-title"),notifyGroup=document.getElementById("notify-group"),notifyCheckbox=document.getElementById("notify-followers-checkbox");
+
+        // --- UI & VIEW SWITCHING ---
+        const menuToggle=document.getElementById("menu-toggle"),dropdownMenu=document.getElementById("dropdown-menu"),menuItems=document.querySelectorAll(".menu-item"),views=document.querySelectorAll(".view"),homeTitle=document.getElementById("home-title");menuToggle.addEventListener("click",()=>dropdownMenu.classList.toggle("show"));window.addEventListener("click",e=>{menuToggle.contains(e.target)||dropdownMenu.contains(e.target)||e.target.closest(".menu-container")||dropdownMenu.classList.remove("show")});const switchView=e=>{views.forEach(e=>e.classList.remove("active")),document.getElementById("view-"+e).classList.add("active"),dropdownMenu.classList.remove("show")};menuItems.forEach(e=>{e.addEventListener("click",t=>{t.preventDefault(),switchView(e.dataset.view)})});homeTitle.addEventListener("click",()=>switchView("movies"));
+
+        // --- AUTHENTICATION ---
+        document.addEventListener("DOMContentLoaded",()=>{const e=document.getElementById("login-btn"),t=document.getElementById("password-input"),n=document.getElementById("login-container"),o=document.getElementById("admin-panel"),a="raBBiM8107z",d=()=>{t.value===a?(n.style.display="none",o.style.display="block",loadSettings(),loadMovies(),loadAnalytics()):alert("Incorrect Password!")};e.addEventListener("click",d),t.addEventListener("keyup",e=>{"Enter"===e.key&&d()})});
+        
+        // --- DATA MANAGEMENT (Settings & Movies) ---
+        function loadSettings(){settingsRef.once("value",e=>{const t=e.val();t&&(appIconInput.value=t.appIconUrl||"",appDownloadInput.value=t.appDownloadUrl||"",ogImageInput.value=t.mainOgImageUrl||"",bengaliMessageInput.value=t.bengaliMessage||"",hindiMessageInput.value=t.hindiMessage||"")}).catch(e=>console.error("Error loading settings:",e))}const saveAllSettings=()=>{const e={appIconUrl:appIconInput.value.trim(),appDownloadUrl:appDownloadInput.value.trim(),mainOgImageUrl:ogImageInput.value.trim(),bengaliMessage:bengaliMessageInput.value.trim(),hindiMessage:hindiMessageInput.value.trim()};settingsRef.set(e).then(()=>alert("Settings saved successfully!")).catch(e=>alert("Error: "+e.message))};saveAppSettingsBtn.addEventListener("click",saveAllSettings),saveMessagesBtn.addEventListener("click",saveAllSettings);function resetForm(){movieForm.reset(),movieKeyInput.value="",formTitle.innerText="Add New Movie",addBtn.style.display="inline-block",updateBtn.style.display="none",notifyGroup.style.display="block"}cancelBtn.addEventListener("click",resetForm);const getFormData=()=>({title:titleInput.value.trim(),image:imageInput.value.trim(),description:descriptionInput.value.trim(),director:directorInput.value.trim(),cast:castInput.value.trim(),releaseDate:releaseDateInput.value.trim(),link:linkInput.value.trim(),link2:link2Input.value.trim(),link3:link3Input.value.trim(),category:categoryInput.value});addBtn.addEventListener("click",()=>{const e=getFormData();e.title&&e.image?(e.timestamp=Date.now(),notifyCheckbox.checked&&(e.notificationSent=!1),moviesRef.push(e).then(()=>{alert("Movie added successfully!"),resetForm()})):alert("Movie Title and Poster URL are required.")}),updateBtn.addEventListener("click",()=>{const e=movieKeyInput.value;if(!e)return;const t=getFormData();t.title&&t.image?moviesRef.child(e).update(t).then(()=>{alert("Movie updated successfully!"),resetForm()}):alert("Movie Title and Poster URL are required.")}),window.editMovie=e=>{moviesRef.child(e).once("value",t=>{const n=t.val();n&&(switchView("movies"),titleInput.value=n.title,imageInput.value=n.image,descriptionInput.value=n.description||"",directorInput.value=n.director||"",castInput.value=n.cast||"",releaseDateInput.value=n.releaseDate||"",linkInput.value=n.link||"",link2Input.value=n.link2||"",link3Input.value=n.link3||"",categoryInput.value=n.category,movieKeyInput.value=e,formTitle.innerText="Edit Movie",addBtn.style.display="none",updateBtn.style.display="inline-block",notifyGroup.style.display="none",window.scrollTo({top:document.getElementById("movie-form").offsetTop,behavior:"smooth"}))})},window.deleteMovie=(e,t)=>{confirm(`Are you sure you want to delete "${t}"?`)&&moviesRef.child(e).remove().then(()=>alert("Movie deleted."))};function loadMovies(){moviesRef.orderByChild("timestamp").on("value",e=>{movieListTbody.innerHTML="";const t=[];e.forEach(e=>{t.push({key:e.key,...e.val()})}),t.reverse().forEach(e=>{const t=document.createElement("tr"),n=e.title.replace(/'/g,"\\'").replace(/"/g,'\\"');t.innerHTML=`<td><img src="${e.image}" alt="${e.title}" class="movie-thumbnail"></td><td>${e.title}</td><td>${e.category}</td><td class="action-buttons"><button class="btn btn-primary" onclick="editMovie('${e.key}')">Edit</button><button class="btn btn-danger" onclick="deleteMovie('${e.key}','${n}')">Delete</button></td>`,movieListTbody.appendChild(t)})})}
+        
+        // --- ANALYTICS ---
+        let charts={};function loadAnalytics(){analyticsRef.on("value",e=>{const t=e.val();if(!t)return;const n=Object.values(t);document.getElementById("total-views").innerText=n.length.toLocaleString();const o=new Date,a=new Date(o.getFullYear(),o.getMonth(),o.getDate()).getTime(),d=a-864e5,l=a-5184e5;let i=0,s=0,r=0;const c={},u={};n.forEach(e=>{e.timestamp>=a&&i++,e.timestamp>=d&&e.timestamp<a&&s++,e.timestamp>=l&&r++,c[e.country||"Unknown"]=(c[e.country||"Unknown"]||0)+1,u[e.source||"Unknown"]=(u[e.source||"Unknown"]||0)+1}),document.getElementById("today-views").innerText=i.toLocaleString(),document.getElementById("yesterday-views").innerText=s.toLocaleString(),document.getElementById("weekly-views").innerText=r.toLocaleString(),renderChart("countryChart","Views by Country",c,"pie"),renderChart("sourceChart","Views by Source",u,"bar")})}function renderChart(e,t,n,o){const a=document.getElementById(e).getContext("2d"),d=Object.entries(n).sort(([,e],[,t])=>t-e).slice(0,10),l=d.map(e=>e[0]),i=d.map(e=>e[1]);charts[e]&&charts[e].destroy(),charts[e]=new Chart(a,{type:o,data:{labels:l,datasets:[{label:t,data:i,backgroundColor:["#FF6384","#36A2EB","#FFCE56","#4BC0C0","#9966FF","#FF9F40"],borderWidth:1}]},options:{responsive:!0,maintainAspectRatio:!1,plugins:{legend:{display:"pie"===o,labels:{color:"#e0e0e0"}}},scales:"pie"!==o?{y:{ticks:{color:"#e0e0e0"},grid:{color:"#444"}},x:{ticks:{color:"#e0e0e0"},grid:{color:"transparent"}}}:{}}})}
+    </script>
+</body>
+</html>
